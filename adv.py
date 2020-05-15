@@ -27,51 +27,84 @@ world.print_rooms()
 
 player = Player(world.starting_room)
 
-#opposite_dir = {'n':'s','e':'w','s':'n','w':'e'}
-
 # Fill this out with directions to walk
 # traversal_path = ['n', 'n']
 traversal_path = []
 
+# This is a debugging list to show the path of rooms
+# that it is selecting as the nearest room
 next_rooms = []
+
 # Create a double ended queue
 unvisited = list(range(0,len(world.rooms)))
-# Append the starting room to the deque
+# Append the starting room to the deque (room 0)
 next_room = world.rooms[unvisited[0]]
+# Remove the starting room from unvisited (room 0)
 unvisited.remove(player.current_room.id)
-# While the deque is not empty, loop
+# While there are still room id's in the unvisited list, loop
 while len(unvisited) > 0:
+    # Add rooms to a next_rooms list
+    # This is for debugging purposes to see the path
+    # of target rooms the algorithm takes
     next_rooms.append(next_room)
-    s_d = deque()
-
-    s_visited = set()
-
-    s_d.append([next_room])
-
-    while len(s_d) > 0:
-        s_path = s_d.popleft()
-
-        s_last = s_path[-1]
-        if s_last.id in unvisited:
-            c_room = s_path[0]
-            for room in s_path[1:]:
-                dic = {}
-                for x in world.rooms[c_room.id].get_exits():
-                    dic[x] = world.rooms[c_room.id].get_room_in_direction(x).id
-                inverted_dict = {v:k for k,v in dic.items()}
-                traversal_path.append(inverted_dict[room.id])
+    # Create a deque for the BFS
+    d = deque()
+    # Create a visited set for the BFS
+    # This will store room id's of visited rooms
+    visited = set()
+    # Start off by appending the next room as a list
+    # This will be the beginning of the path to the next
+    # closest unexplored room
+    d.append([next_room])
+    # While this deque is not empty, loop
+    while len(d) > 0:
+        # Pop the left side of the deque (Queue like)
+        path = d.popleft()
+        # Get the last room in the list of the path
+        last = path[-1]
+        # If the last room in the path is an unvisited room
+        # We need to reconstruct the moves in cardinal directions
+        # to be able to get to this room through path
+        if last.id in unvisited:
+            # current room is the first room in the path
+            c_room = path[0]
+            # For each room in the path following the first
+            # We determine the direction to get from the current room in the
+            # to the next room in the path
+            for room in path[1:]:
+                # Create a dictionary where the key is the room in a certain
+                # direction, and the value is the direction that room is in
+                dic = {world.rooms[c_room.id].get_room_in_direction(x).id:x for x in world.rooms[c_room.id].get_exits()}
+                # Using this reversed dictionary, we can pass the room.id to
+                # get the direction to move to get to that room id
+                # Therefore we can append to the travel path that direction
+                traversal_path.append(dic[room.id])
+                # Lastly, set the current room to the current target room
                 c_room = room
-            unvisited.remove(s_last.id)
-            next_room = s_last
+            # Remove the last room's id from unvisited as we have now visited
+            # that room and do not need to visit it again
+            unvisited.remove(last.id)
+            # now the next room will be the last room in the path
+            # This moves the source room to the new room that was unvisited
+            next_room = last
+            # Break the BFS while loop
             break
-
+        # If the last room in the path is NOT in unvisited
+        # We need to create paths to all of its exit rooms to look for
+        # the next closest unvisited room
         else:
-            s_visited.add(s_last.id)
-            if s_last not in unvisited:
-                for direction in world.rooms[s_last.id].get_exits():
-                    s_room_in_dir = s_last.get_room_in_direction(direction)
-                    if s_room_in_dir.id not in s_visited:
-                        s_d.append(s_path+[s_room_in_dir])
+            # So we add the last.id to the visited set so we don't move 
+            # backwards and create an infinite loop
+            visited.add(last.id)
+            # Now we loop through each direction in the last room's exits
+            for direction in world.rooms[last.id].get_exits():
+                # For each direction, we get the room in that direction
+                room_in_dir = last.get_room_in_direction(direction)
+                # As long as that room's id is not in visited, we add
+                # it to the end of the path, and add this new path to
+                # the list of paths in the BFS to check for unvisited rooms
+                if room_in_dir.id not in visited:
+                    d.append(path+[room_in_dir])
 
 
 # print(len(traversal_path))
